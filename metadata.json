@@ -1,0 +1,6 @@
+{
+  "name": "YieldWise",
+  "description": "Deterministic grocery portion, food trimming yield, and smart budget purchase optimizer.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
