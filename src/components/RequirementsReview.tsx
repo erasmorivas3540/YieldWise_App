@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowRight, CheckCircle2, AlertTriangle, ShieldCheck, HelpCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, AlertTriangle, Check } from 'lucide-react';
 import { scaleRequirement } from '../algorithms/portionCalculator';
 import { formatCanonicalQuantity } from '../algorithms/yieldCalculator';
 import { Recipe, VerifiedPantryEntry } from '../types';
@@ -17,7 +17,6 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
   recipe,
   verifiedPantry,
   onUpdatePantry,
-  onConfirmRequirement,
   onNext,
   onBack,
 }) => {
@@ -29,7 +28,7 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
     const parsed = parseFloat(amountStr);
     let canonicalStr = '0';
     if (!isNaN(parsed) && parsed > 0) {
-      canonicalStr = dimension === 'count' ? String(Math.floor(parsed)) : String(Math.round(parsed * 1000)); // input in grams => mg
+      canonicalStr = dimension === 'count' ? String(Math.floor(parsed)) : String(Math.round(parsed * 1000));
     }
 
     const filtered = verifiedPantry.filter((p) => p.ingredientRequirementId !== requirementId);
@@ -41,7 +40,7 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
         foodForm: 'verified',
         provenance: {
           type: 'USER_CONFIRMED',
-          sourceLabel: 'User pantry inventory',
+          sourceLabel: 'Pantry inventory',
           observedAt: new Date().toISOString(),
           confirmedByUser: true,
         },
@@ -54,34 +53,33 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
   const hasBlockers = scaledRequirements.some((s) => Boolean(s.blocker));
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-          <div>
-            <h2 className="text-xl font-bold text-white">Review Ingredient Requirements</h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Scaled to {recipe.targetServings} servings using deterministic integer math. Subtract ingredients you already have at home.
-            </p>
-          </div>
-          <span className="text-xs px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 w-fit">
-            Serving Multiplier: {recipe.targetServings}×
-          </span>
+    <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 pb-2 border-b border-stone-200">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-stone-900">Review Requirements</h1>
+          <p className="text-xs text-stone-500 mt-0.5">
+            Portions scaled to {recipe.targetServings} servings. Deduct any ingredients already in your pantry.
+          </p>
         </div>
+        <span className="text-xs font-mono text-stone-500">
+          Scale: {recipe.targetServings}×
+        </span>
+      </div>
 
-        {/* Requirements Table */}
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 text-[11px] uppercase tracking-wider text-slate-400 font-semibold">
-                <th className="py-3 px-3">Ingredient</th>
-                <th className="py-3 px-3">Per Serving</th>
-                <th className="py-3 px-3">Scaled Target</th>
-                <th className="py-3 px-3">Home Pantry (g or count)</th>
-                <th className="py-3 px-3">Net Required</th>
-                <th className="py-3 px-3 text-right">Data Provenance</th>
+              <tr className="border-b border-stone-200 bg-[#FAF8F5] text-stone-600 font-medium">
+                <th className="py-2.5 px-4">Ingredient</th>
+                <th className="py-2.5 px-3">Base</th>
+                <th className="py-2.5 px-3">Scaled Target</th>
+                <th className="py-2.5 px-3">Pantry Offset</th>
+                <th className="py-2.5 px-3 font-semibold text-stone-900">Net Required</th>
+                <th className="py-2.5 px-4 text-right">Provenance</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/80 text-xs sm:text-sm">
+            <tbody className="divide-y divide-stone-100 text-stone-800">
               {recipe.requirements.map((req) => {
                 const scaled = scaledRequirements.find((s) => s.id === req.id);
                 const matchingPantry = verifiedPantry.find(
@@ -94,32 +92,32 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
                   : '';
 
                 return (
-                  <tr key={req.id} className="hover:bg-slate-800/30 transition">
-                    <td className="py-3 px-3 font-medium text-slate-200">
-                      <div>{req.displayName}</div>
-                      <div className="text-[11px] text-slate-500 capitalize">
-                        {req.state.replace('_', ' ')} • {req.foodForm}
+                  <tr key={req.id} className="hover:bg-stone-50/60 transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="font-medium text-stone-900">{req.displayName}</div>
+                      <div className="text-[11px] text-stone-500 capitalize">
+                        {req.state.replace('_', ' ')}
                       </div>
                       {scaled?.warnings && scaled.warnings.length > 0 && (
-                        <div className="text-[11px] text-amber-400 flex items-center gap-1 mt-0.5">
-                          <AlertTriangle className="w-3 h-3" />
+                        <div className="text-[11px] text-amber-700 flex items-center gap-1 mt-0.5">
+                          <AlertTriangle className="w-3 h-3 flex-shrink-0" />
                           <span>{scaled.warnings[0]}</span>
                         </div>
                       )}
                     </td>
 
-                    <td className="py-3 px-3 text-slate-300">
+                    <td className="py-3 px-3 font-mono tabular-nums text-stone-600">
                       {req.baseAmount} {req.baseUnit}
                     </td>
 
-                    <td className="py-3 px-3 font-semibold text-white">
+                    <td className="py-3 px-3 font-mono tabular-nums font-medium text-stone-900">
                       {scaled
                         ? formatCanonicalQuantity(scaled.rawTargetCanonical, req.dimension, req.baseUnit)
                         : '—'}
                     </td>
 
                     <td className="py-3 px-3">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         <input
                           type="number"
                           min="0"
@@ -133,10 +131,10 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
                             )
                           }
                           placeholder="0"
-                          className="w-20 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-emerald-500"
+                          className="w-16 bg-[#FAF8F5] border border-stone-200 rounded px-2 py-1 text-xs font-mono text-stone-900 focus:outline-none focus:border-[#3E4F32]"
                         />
-                        <span className="text-[11px] text-slate-500">
-                          {req.dimension === 'count' ? 'count' : 'g'}
+                        <span className="text-[11px] text-stone-500">
+                          {req.dimension === 'count' ? 'ct' : 'g'}
                         </span>
                       </div>
                     </td>
@@ -144,12 +142,12 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
                     <td className="py-3 px-3">
                       {scaled ? (
                         scaled.requiredCanonical === 0 ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-semibold">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Covered by pantry</span>
+                          <span className="inline-flex items-center gap-1 text-[11px] text-[#3E4F32] font-medium">
+                            <Check className="w-3 h-3" />
+                            <span>Pantry covered</span>
                           </span>
                         ) : (
-                          <span className="font-bold text-emerald-400">
+                          <span className="font-mono tabular-nums font-semibold text-[#3E4F32]">
                             {formatCanonicalQuantity(
                               scaled.requiredCanonical,
                               req.dimension,
@@ -162,11 +160,8 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
                       )}
                     </td>
 
-                    <td className="py-3 px-3 text-right">
-                      <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-                        <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                        <span>{req.provenance.type}</span>
-                      </span>
+                    <td className="py-3 px-4 text-right text-[11px] text-stone-500">
+                      <span>{req.provenance.type === 'USER_CONFIRMED' ? 'Confirmed' : 'Sample'}</span>
                     </td>
                   </tr>
                 );
@@ -175,36 +170,22 @@ export const RequirementsReview: React.FC<RequirementsReviewProps> = ({
           </table>
         </div>
 
-        {/* Informational callout on math guarantee */}
-        <div className="mt-6 p-4 rounded-xl bg-slate-950/60 border border-slate-800 text-xs text-slate-400 flex items-start gap-3">
-          <HelpCircle className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-          <div className="space-y-1">
-            <p className="font-semibold text-slate-300">
-              Deterministic Math & Dimension Safety:
-            </p>
-            <p>
-              Target amounts use ceiling integer arithmetic (<code className="text-slate-300">ceil(base * servings / baseServings)</code>) to ensure you never run short of raw edible mass. Trimming losses (stems, bone, skin) are computed during package comparison.
-            </p>
-          </div>
-        </div>
-
-        {/* Buttons */}
-        <div className="flex items-center justify-between pt-6 border-t border-slate-800 mt-6">
+        <div className="flex items-center justify-between p-4 bg-[#FAF8F5] border-t border-stone-200">
           <button
             onClick={onBack}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition"
+            className="inline-flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900 font-medium transition"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Recipe</span>
           </button>
 
           <button
             onClick={onNext}
             disabled={hasBlockers}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-xs sm:text-sm text-white shadow-sm transition"
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3E4F32] hover:bg-[#34422A] disabled:opacity-40 font-medium text-xs text-white transition shadow-xs"
           >
             <span>Set Budget & Priorities</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

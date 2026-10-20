@@ -2,7 +2,8 @@ import { Router } from 'express';
 import { optimizeBudget, optimizeRecipe } from '../../src/algorithms/budgetOptimizer';
 import { scaleRequirement } from '../../src/algorithms/portionCalculator';
 import { BudgetOptimizationRequest, OptimizationOptions, Recipe } from '../../src/types';
-import { parseRecipeWithGemini } from '../services/geminiParser';
+import { parseRecipeFromUrl, parseRecipeWithGemini } from '../services/geminiParser';
+import { extractPackagesFromImage, extractPackagesFromStoreUrl } from '../services/packageExtractor';
 
 export const apiRouter = Router();
 
@@ -25,23 +26,37 @@ apiRouter.get('/health', (req, res) => {
  */
 apiRouter.post('/recipes/parse', async (req, res) => {
   try {
-    const { text, preferredServings } = req.body;
-    if (!text || typeof text !== 'string' || text.trim().length === 0) {
-      return res.status(422).json({
-        error: 'VALIDATION_ERROR',
-        message: 'Recipe or meal text must be a non-empty string.',
-      });
+    const { text, imageBase64, mimeType, url, preferredServings } = req.body;
+
+    if (url && typeof url === 'string') {
+      const result = await parseRecipeFromUrl(url.trim(), preferredServings);
+      return res.json(result);
     }
 
-    if (text.length > 6000) {
-      return res.status(413).json({
-        error: 'PAYLOAD_TOO_LARGE',
-        message: 'Recipe text exceeds 6,000 character limit.',
+    if (imageBase64 && typeof imageBase64 === 'string') {
+      const result = await parseRecipeWithGemini({
+        imageBase64,
+        mimeType: mimeType || 'image/jpeg',
+        preferredServings,
       });
+      return res.json(result);
     }
 
-    const result = await parseRecipeWithGemini({ text, preferredServings });
-    res.json(result);
+    if (text && typeof text === 'string' && text.trim().length > 0) {
+      if (text.length > 20000) {
+        return res.status(413).json({
+          error: 'PAYLOAD_TOO_LARGE',
+          message: 'Recipe text exceeds character limit.',
+        });
+      }
+      const result = await parseRecipeWithGemini({ text, preferredServings });
+      return res.json(result);
+    }
+
+    return res.status(422).json({
+      error: 'VALIDATION_ERROR',
+      message: 'Please provide either a meal name/recipe text, an image screenshot, or a recipe URL.',
+    });
   } catch (err: any) {
     if (err.message === 'AI_NOT_CONFIGURED') {
       return res.status(503).json({
@@ -52,7 +67,7 @@ apiRouter.post('/recipes/parse', async (req, res) => {
     console.error('Recipe parse error:', err);
     res.status(500).json({
       error: 'PARSER_ERROR',
-      message: err.message || 'Failed to parse recipe with AI.',
+      message: err.message || 'Failed to parse recipe.',
     });
   }
 });
@@ -174,6 +189,77 @@ apiRouter.post('/budget/optimize', (req, res) => {
       error: 'BUDGET_OPTIMIZATION_ERROR',
       code: 'EXECUTION_FAILED',
       message: err.message || 'Budget optimization failed.',
+    });
+  }
+});
+
+/**
+ * Extract package offerings from an in-store shelf photo
+ */
+apiRouter.post('/packages/extract-photo', async (req, res) => {
+  try {
+    const { imageBase64, mimeType, canonicalIngredientId, ingredientName } = req.body;
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return res.status(422).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Image data is required.',
+      });
+    }
+
+    const result = await extractPackagesFromImage({
+      imageBase64,
+      mimeType: mimeType || 'image/jpeg',
+      canonicalIngredientId: canonicalIngredientId || 'ingredient',
+      ingredientName: ingredientName || 'ingredient',
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    if (err.message === 'AI_NOT_CONFIGURED') {
+      return res.status(503).json({
+        error: 'AI_NOT_CONFIGURED',
+        message: 'Gemini API key is not configured for shelf photo analysis.',
+      });
+    }
+    console.error('Shelf photo extraction error:', err);
+    res.status(500).json({
+      error: 'EXTRACTION_ERROR',
+      message: err.message || 'Failed to extract package selections from photo.',
+    });
+  }
+});
+
+/**
+ * Extract package offerings from a grocery store product page URL
+ */
+apiRouter.post('/packages/extract-url', async (req, res) => {
+  try {
+    const { url, canonicalIngredientId, ingredientName } = req.body;
+    if (!url || typeof url !== 'string') {
+      return res.status(422).json({
+        error: 'VALIDATION_ERROR',
+        message: 'Store URL is required.',
+      });
+    }
+
+    const result = await extractPackagesFromStoreUrl({
+      url: url.trim(),
+      canonicalIngredientId: canonicalIngredientId || 'ingredient',
+      ingredientName: ingredientName || 'ingredient',
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    if (err.message === 'AI_NOT_CONFIGURED') {
+      return res.status(503).json({
+        error: 'AI_NOT_CONFIGURED',
+        message: 'Gemini API key is not configured.',
+      });
+    }
+    console.error('Store URL extraction error:', err);
+    res.status(500).json({
+      error: 'EXTRACTION_ERROR',
+      message: err.message || 'Failed to extract package from store URL.',
     });
   }
 });

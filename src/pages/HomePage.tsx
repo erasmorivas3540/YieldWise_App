@@ -18,7 +18,6 @@ import {
 } from '../types';
 
 export const HomePage: React.FC = () => {
-  // Initial default: Demo 1 (Chicken, Rice, Broccoli)
   const defaultDemo = DEMO_MEALS[0];
 
   const [currentStep, setCurrentStep] = useState<StepId>('plan');
@@ -60,16 +59,19 @@ export const HomePage: React.FC = () => {
   // Recalculate results whenever inputs change
   useEffect(() => {
     try {
-      // 1. Unbudgeted recipe run
-      const unbudgeted = optimizeRecipe(recipe, packages, {
-        objective,
-        maxSkuOptionsPerIngredient: 4,
-        maxPacksPerSku: 12,
-        maxCombinationsPerIngredient: 100000,
-      }, verifiedPantry);
+      const unbudgeted = optimizeRecipe(
+        recipe,
+        packages,
+        {
+          objective,
+          maxSkuOptionsPerIngredient: 4,
+          maxPacksPerSku: 12,
+          maxCombinationsPerIngredient: 100000,
+        },
+        verifiedPantry
+      );
       setUnbudgetedResult(unbudgeted);
 
-      // 2. Budget mode run (if all ingredients have priorities)
       const hasAllPriorities = recipe.requirements.every((r) => Boolean(priorities[r.id]));
       if (hasAllPriorities) {
         const priorityPrefs = recipe.requirements.map((r) => ({
@@ -132,6 +134,51 @@ export const HomePage: React.FC = () => {
     setPriorities(allEssential);
   };
 
+  const handleUpdateRecipe = (updated: Recipe) => {
+    setRecipe(updated);
+
+    // Ensure newly imported ingredients have default packages and priorities ready
+    setPackages((prevPackages) => {
+      const newPkgs = [...prevPackages];
+      for (const req of updated.requirements) {
+        const hasPkg = newPkgs.some((p) => p.canonicalIngredientId === req.canonicalIngredientId);
+        if (!hasPkg && req.displayName.trim()) {
+          const isCount = req.dimension === 'count';
+          newPkgs.push({
+            id: `pkg-${req.canonicalIngredientId || req.id}-std`,
+            canonicalIngredientId: req.canonicalIngredientId || req.id,
+            displayName: `${req.displayName} (Standard)`,
+            foodForm: req.foodForm || 'standard',
+            dimension: isCount ? 'count' : 'mass',
+            packAmount: isCount ? '6' : '500',
+            packUnit: isCount ? 'count' : 'g',
+            priceCents: 350,
+            edibleYieldPpm: 1000000,
+            formCompatible: true,
+            provenance: {
+              type: 'USER_CONFIRMED',
+              sourceLabel: 'Auto-drafted package option',
+              observedAt: new Date().toISOString(),
+              confirmedByUser: true,
+            },
+            reviewStatus: 'confirmed',
+          });
+        }
+      }
+      return newPkgs;
+    });
+
+    setPriorities((prevPriorities) => {
+      const nextPriorities = { ...prevPriorities };
+      for (const req of updated.requirements) {
+        if (!nextPriorities[req.id]) {
+          nextPriorities[req.id] = 'essential';
+        }
+      }
+      return nextPriorities;
+    });
+  };
+
   const handleExploreFewerServings = (newServings: number) => {
     setRecipe((prev) => ({
       ...prev,
@@ -145,7 +192,7 @@ export const HomePage: React.FC = () => {
     : unbudgetedResult?.totalKnownCostCents;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col font-sans">
       <Navbar
         currentStep={currentStep}
         onSelectStep={setCurrentStep}
@@ -156,11 +203,11 @@ export const HomePage: React.FC = () => {
         budgetCents={budgetCents}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8">
         {currentStep === 'plan' && (
           <MealPlanner
             recipe={recipe}
-            onUpdateRecipe={setRecipe}
+            onUpdateRecipe={handleUpdateRecipe}
             onLoadDemo={handleLoadDemo}
             onNext={() => setCurrentStep('review')}
             aiConfigured={aiConfigured}
@@ -172,7 +219,7 @@ export const HomePage: React.FC = () => {
             recipe={recipe}
             verifiedPantry={verifiedPantry}
             onUpdatePantry={setVerifiedPantry}
-            onConfirmRequirement={(id) => {}}
+            onConfirmRequirement={() => {}}
             onNext={() => setCurrentStep('budget')}
             onBack={() => setCurrentStep('plan')}
           />
@@ -219,15 +266,11 @@ export const HomePage: React.FC = () => {
         )}
       </main>
 
-      {/* Disclaimers Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-4xl mx-auto px-4 space-y-2">
-          <p>
-            YieldWise is an independent grocery portion & budget optimization prototype. Pre-tax prices are user-supplied or from clearly labeled synthetic demo data. Not live store prices or official USDA endorsements.
-          </p>
-          <p className="text-[11px] text-slate-600">
-            Trimming yields are demo assumptions or user-verified factors. Excludes local sales tax, bottle deposits, and delivery fees.
-          </p>
+      <footer className="border-t border-stone-200 py-6 text-center text-xs text-stone-500">
+        <div className="max-w-4xl mx-auto px-4">
+          <span>YieldWise · Deterministic Grocery Portions & Budget Optimization</span>
+          <span className="mx-2 text-stone-300">·</span>
+          <span>Sample data illustrative only</span>
         </div>
       </footer>
     </div>

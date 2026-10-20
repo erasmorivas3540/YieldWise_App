@@ -1,17 +1,9 @@
 import React from 'react';
 import {
   ArrowLeft,
-  CheckCircle2,
+  Check,
   AlertTriangle,
   XCircle,
-  Download,
-  DollarSign,
-  TrendingUp,
-  Package,
-  Layers,
-  Sparkles,
-  Info,
-  HelpCircle,
   FileSpreadsheet,
   FileText,
 } from 'lucide-react';
@@ -106,7 +98,6 @@ export const ResultsCart: React.FC<ResultsCartProps> = ({
       }
     }
 
-    // Sanitize cells to prevent CSV formula injection
     const sanitizeCell = (cell: string) => {
       const trimmed = cell.trim();
       if (/^[=+\-@\t\r]/.test(trimmed)) {
@@ -140,417 +131,292 @@ export const ResultsCart: React.FC<ResultsCartProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Status Banners */}
-      {budgetMode && budgetResult && (
-        <div>
-          {budgetResult.status === 'complete_original_within_budget' && (
-            <div className="p-5 rounded-2xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 flex items-start gap-3 shadow-sm">
-              <CheckCircle2 className="w-6 h-6 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-bold text-base text-emerald-300">
-                  Complete Original Meal Within Budget
-                </h3>
-                <p className="text-xs sm:text-sm text-emerald-200/90 mt-0.5">
-                  All essential and requested optional ingredients fit within your ${(budgetResult.budgetCents / 100).toFixed(2)} budget ceiling.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {budgetResult.status === 'adapted_within_budget' && (
-            <div className="p-5 rounded-2xl bg-amber-950/60 border border-amber-500/40 text-amber-200 flex items-start gap-3 shadow-sm">
-              <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-bold text-base text-amber-300">
-                  Adapted Meal — Some Optional Ingredients Excluded
-                </h3>
-                <p className="text-xs sm:text-sm text-amber-200/90 mt-0.5">
-                  Essentials are fully protected. Some optional ingredients were omitted because whole packages exceed the ${(budgetResult.budgetCents / 100).toFixed(2)} ceiling.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {budgetResult.status === 'essential_over_budget' && (
-            <div className="p-5 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-start gap-3 shadow-sm">
-              <XCircle className="w-6 h-6 text-rose-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-bold text-base text-rose-300">
-                  Essential Ingredients Exceed Budget Ceiling
-                </h3>
-                <p className="text-xs sm:text-sm text-rose-200/90 mt-0.5">
-                  Minimum cost for essential packages is{' '}
-                  <span className="font-bold underline">
-                    ${((budgetResult.cheapestEssentialCostCents || 0) / 100).toFixed(2)}
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Header & Status Indicator */}
+      <div className="pb-2 border-b border-stone-200">
+        <h1 className="text-xl font-semibold tracking-tight text-stone-900">Optimized Cart</h1>
+        {budgetMode && budgetResult ? (
+          <div className="text-xs mt-1">
+            {budgetResult.status === 'complete_original_within_budget' && (
+              <span className="text-[#3E4F32] font-medium flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" />
+                <span>Complete meal within ${(budgetResult.budgetCents / 100).toFixed(2)} budget ceiling.</span>
+              </span>
+            )}
+            {budgetResult.status === 'adapted_within_budget' && (
+              <span className="text-amber-800 font-medium flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Adapted meal: essentials protected; some optional items excluded to meet ${(budgetResult.budgetCents / 100).toFixed(2)} budget.</span>
+              </span>
+            )}
+            {budgetResult.status === 'essential_over_budget' && (
+              <div className="text-rose-700 font-medium space-y-1">
+                <div className="flex items-center gap-1">
+                  <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>
+                    Essential packages cost ${((budgetResult.cheapestEssentialCostCents || 0) / 100).toFixed(2)}, exceeding budget by ${((budgetResult.shortfallCents || 0) / 100).toFixed(2)}.
                   </span>
-                  , exceeding your ${(budgetResult.budgetCents / 100).toFixed(2)} budget by{' '}
-                  <span className="font-bold">
-                    ${((budgetResult.shortfallCents || 0) / 100).toFixed(2)}
-                  </span>
-                  . No feasible cart can be created without exceeding your limit.
-                </p>
-
+                </div>
                 {recipe.targetServings > 1 && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <button
-                      onClick={() => onExploreFewerServings(recipe.targetServings - 1)}
-                      className="px-3 py-1.5 rounded-lg bg-rose-900/60 hover:bg-rose-800 text-xs font-semibold text-white transition"
-                    >
-                      Explore {recipe.targetServings - 1} Servings
-                    </button>
-                    <span className="text-xs text-rose-300/80">Recalculates packages afresh</span>
-                  </div>
+                  <button
+                    onClick={() => onExploreFewerServings(recipe.targetServings - 1)}
+                    className="text-xs text-stone-800 underline underline-offset-2 hover:text-black font-semibold"
+                  >
+                    Explore recalculation for {recipe.targetServings - 1} servings
+                  </button>
                 )}
               </div>
-            </div>
-          )}
+            )}
+            {budgetResult.status === 'blocked_missing_input' && (
+              <span className="text-rose-600 font-medium">
+                Missing price or yield for one or more items.
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-stone-500 mt-0.5">
+            Full recipe package fulfillment ({objective === 'lowest_checkout_cost' ? 'lowest checkout cost' : 'least leftover'}).
+          </p>
+        )}
+      </div>
 
-          {budgetResult.status === 'blocked_missing_input' && (
-            <div className="p-5 rounded-2xl bg-slate-900 border border-amber-600/50 text-amber-200 flex items-start gap-3">
-              <AlertTriangle className="w-6 h-6 text-amber-400 flex-shrink-0" />
-              <div>
-                <h3 className="font-bold text-base text-white">Missing Input or Unpriced Packages</h3>
-                <p className="text-xs text-slate-300 mt-1">
-                  At least one required ingredient has missing package pricing, unverified yield, or no compatible package. Please edit packages before solving.
-                </p>
+      {/* KPI Metric Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        {budgetMode && budgetResult ? (
+          <>
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Budget</span>
+              <span className="text-base font-semibold font-mono text-stone-900 mt-0.5 block tabular-nums">
+                ${(budgetResult.budgetCents / 100).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Spent</span>
+              <span className="text-base font-semibold font-mono text-[#3E4F32] mt-0.5 block tabular-nums">
+                {budgetResult.spentCents !== null ? `$${(budgetResult.spentCents / 100).toFixed(2)}` : '—'}
+              </span>
+            </div>
+
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Remaining</span>
+              <span className="text-base font-semibold font-mono text-stone-700 mt-0.5 block tabular-nums">
+                {budgetResult.remainingCents !== null ? `$${(budgetResult.remainingCents / 100).toFixed(2)}` : '—'}
+              </span>
+            </div>
+
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Full Recipe</span>
+              <span className="text-base font-semibold font-mono text-stone-500 mt-0.5 block tabular-nums">
+                {budgetResult.fullRecipeCostCents !== null ? `$${(budgetResult.fullRecipeCostCents / 100).toFixed(2)}` : '—'}
+              </span>
+            </div>
+          </>
+        ) : unbudgetedResult ? (
+          <>
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Total Cost</span>
+              <span className="text-base font-semibold font-mono text-[#3E4F32] mt-0.5 block tabular-nums">
+                ${(unbudgetedResult.totalKnownCostCents / 100).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Per Serving</span>
+              <span className="text-base font-semibold font-mono text-stone-800 mt-0.5 block tabular-nums">
+                ${(unbudgetedResult.costPerServingCents / 100).toFixed(2)}
+              </span>
+            </div>
+
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Items Fulfilled</span>
+              <span className="text-base font-semibold font-mono text-stone-800 mt-0.5 block tabular-nums">
+                {unbudgetedResult.ingredientPlans.filter((p) => p.status === 'optimal_within_limits').length} / {unbudgetedResult.ingredientPlans.length}
+              </span>
+            </div>
+
+            <div className="bg-white border border-stone-200 rounded-lg p-3 shadow-xs">
+              <span className="text-[10px] text-stone-500 uppercase font-medium block">Objective</span>
+              <div className="flex items-center gap-1 mt-1">
+                <button
+                  type="button"
+                  onClick={() => onChangeObjective('lowest_checkout_cost')}
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                    objective === 'lowest_checkout_cost' ? 'bg-stone-900 text-white' : 'text-stone-500'
+                  }`}
+                >
+                  Cost
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangeObjective('least_estimated_leftover')}
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                    objective === 'least_estimated_leftover' ? 'bg-stone-900 text-white' : 'text-stone-500'
+                  }`}
+                >
+                  Leftover
+                </button>
               </div>
             </div>
-          )}
+          </>
+        ) : null}
+      </div>
+
+      {/* Package Shopping List */}
+      <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-xs">
+        <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between bg-[#FAF8F5]">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-600">
+            Shopping Recommendations
+          </h2>
+          <span className="text-[11px] font-mono text-stone-400">
+            {recipe.targetServings} Servings
+          </span>
         </div>
-      )}
 
-      {/* Main Results Card */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white space-y-6">
-        {/* Header & Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="divide-y divide-stone-100">
           {budgetMode && budgetResult ? (
-            <>
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Budget Ceiling</span>
-                <span className="text-2xl font-bold text-white mt-1 block">
-                  ${(budgetResult.budgetCents / 100).toFixed(2)}
-                </span>
-              </div>
+            budgetResult.items.map((item) => {
+              const req = recipe.requirements.find((r) => r.id === item.requirementId);
+              const isIncluded = item.status === 'included';
+              const isPantry = item.status === 'covered_by_pantry';
+              const isOmitted = item.status === 'omitted_optional';
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Checkout Total</span>
-                <span className="text-2xl font-bold text-emerald-400 mt-1 block">
-                  {budgetResult.spentCents !== null ? `$${(budgetResult.spentCents / 100).toFixed(2)}` : '—'}
-                </span>
-              </div>
+              return (
+                <div
+                  key={item.requirementId}
+                  className={`p-4 transition-colors ${
+                    isOmitted ? 'bg-stone-50/50 opacity-60' : 'hover:bg-stone-50/40'
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-xs text-stone-900">{req?.displayName}</span>
+                      <span className="text-stone-300">·</span>
+                      <span className="text-[11px] text-stone-500 capitalize">{item.priority}</span>
+                      {isOmitted && (
+                        <>
+                          <span className="text-stone-300">·</span>
+                          <span className="text-[11px] text-amber-800 font-medium">Omitted</span>
+                        </>
+                      )}
+                      {isPantry && (
+                        <>
+                          <span className="text-stone-300">·</span>
+                          <span className="text-[11px] text-[#3E4F32] font-medium">Pantry covered</span>
+                        </>
+                      )}
+                    </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Remaining Change</span>
-                <span className="text-2xl font-bold text-slate-200 mt-1 block">
-                  {budgetResult.remainingCents !== null ? `$${(budgetResult.remainingCents / 100).toFixed(2)}` : '—'}
-                </span>
-              </div>
+                    <div className="text-xs font-mono tabular-nums font-semibold text-stone-900">
+                      {item.costCents !== null ? `$${(item.costCents / 100).toFixed(2)}` : '—'}
+                    </div>
+                  </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Full Recipe Total</span>
-                <span className="text-2xl font-bold text-slate-400 mt-1 block">
-                  {budgetResult.fullRecipeCostCents !== null ? `$${(budgetResult.fullRecipeCostCents / 100).toFixed(2)}` : '—'}
-                </span>
-              </div>
-            </>
+                  {isIncluded && item.selections.length > 0 && (
+                    <div className="mt-2 text-xs text-stone-700 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="font-mono font-medium text-[#3E4F32]">
+                        {item.selections.map((s) => {
+                          const pkg = packages.find((p) => p.id === s.packageId);
+                          return `${s.count}× ${pkg?.displayName || s.packageId}`;
+                        }).join(' + ')}
+                      </span>
+                      <span className="text-stone-400">·</span>
+                      <span className="text-stone-500 font-mono text-[11px]">
+                        Provides {formatCanonicalQuantity(parseInt(item.fulfilledCanonicalQuantity, 10), req?.dimension || 'mass', req?.baseUnit)}
+                        {parseInt(item.leftoverCanonicalQuantity, 10) > 0 && (
+                          <span> ({formatCanonicalQuantity(parseInt(item.leftoverCanonicalQuantity, 10), req?.dimension || 'mass', req?.baseUnit)} leftover)</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-1 text-[11px] text-stone-400">
+                    {item.explanation}
+                  </div>
+                </div>
+              );
+            })
           ) : unbudgetedResult ? (
-            <>
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Total Estimated Cost</span>
-                <span className="text-2xl font-bold text-emerald-400 mt-1 block">
-                  ${(unbudgetedResult.totalKnownCostCents / 100).toFixed(2)}
-                </span>
-              </div>
+            unbudgetedResult.ingredientPlans.map((plan) => {
+              const req = recipe.requirements.find((r) => r.id === plan.ingredientId);
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Cost Per Serving</span>
-                <span className="text-2xl font-bold text-slate-200 mt-1 block">
-                  ${(unbudgetedResult.costPerServingCents / 100).toFixed(2)}
-                </span>
-                <span className="text-[10px] text-slate-500">For {unbudgetedResult.targetServings} servings</span>
-              </div>
+              return (
+                <div key={plan.ingredientId} className="p-4 hover:bg-stone-50/40 transition-colors">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div>
+                      <span className="font-semibold text-xs text-stone-900">{req?.displayName}</span>
+                      <span className="text-stone-300 mx-1.5">·</span>
+                      <span className="text-[11px] text-stone-500 font-mono">
+                        Need {formatCanonicalQuantity(parseInt(plan.requiredCanonicalQuantity, 10), req?.dimension || 'mass', req?.baseUnit)}
+                      </span>
+                    </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Ingredients Fulfilled</span>
-                <span className="text-2xl font-bold text-white mt-1 block">
-                  {unbudgetedResult.ingredientPlans.filter((p) => p.status === 'optimal_within_limits').length} / {unbudgetedResult.ingredientPlans.length}
-                </span>
-              </div>
+                    <div className="text-xs font-mono tabular-nums font-semibold text-stone-900">
+                      {plan.ingredientCostCents !== undefined
+                        ? `$${(plan.ingredientCostCents / 100).toFixed(2)}`
+                        : '—'}
+                    </div>
+                  </div>
 
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <span className="text-[11px] text-slate-400 uppercase font-semibold block">Optimization Goal</span>
-                <span className="text-xs font-semibold text-emerald-400 mt-2 block capitalize">
-                  {objective.replace(/_/g, ' ')}
-                </span>
-              </div>
-            </>
+                  {plan.selections.length > 0 && (
+                    <div className="mt-2 text-xs text-stone-700 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="font-mono font-medium text-[#3E4F32]">
+                        {plan.selections.map((s) => {
+                          const pkg = packages.find((p) => p.id === s.packageId);
+                          return `${s.count}× ${pkg?.displayName || s.packageId}`;
+                        }).join(' + ')}
+                      </span>
+                      <span className="text-stone-400">·</span>
+                      <span className="text-stone-500 font-mono text-[11px]">
+                        Yields {plan.providedCanonicalQuantity ? formatCanonicalQuantity(parseInt(plan.providedCanonicalQuantity, 10), req?.dimension || 'mass', req?.baseUnit) : '0'}
+                        {plan.leftoverCanonicalQuantity && parseInt(plan.leftoverCanonicalQuantity, 10) > 0 && (
+                          <span> ({formatCanonicalQuantity(parseInt(plan.leftoverCanonicalQuantity, 10), req?.dimension || 'mass', req?.baseUnit)} leftover)</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-1 text-[11px] text-stone-400">
+                    {plan.explanation}
+                  </div>
+                </div>
+              );
+            })
           ) : null}
         </div>
+      </div>
 
-        {/* Objective Switcher (Unbudgeted mode) */}
-        {!budgetMode && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-slate-950 rounded-xl border border-slate-800">
-            <div>
-              <span className="text-xs font-semibold text-slate-300">Optimization Priority:</span>
-              <p className="text-[11px] text-slate-400">
-                {objective === 'lowest_checkout_cost'
-                  ? 'Minimizes cash out of pocket at checkout (lexicographical: cost > leftover > pack count).'
-                  : 'Minimizes expected excess usable mass in your pantry (may cost slightly more at checkout).'}
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => onChangeObjective('lowest_checkout_cost')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  objective === 'lowest_checkout_cost'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-900 text-slate-400 hover:text-white'
-                }`}
-              >
-                Lowest Checkout Cost
-              </button>
-              <button
-                type="button"
-                onClick={() => onChangeObjective('least_estimated_leftover')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  objective === 'least_estimated_leftover'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-900 text-slate-400 hover:text-white'
-                }`}
-              >
-                Least Leftover
-              </button>
-            </div>
-          </div>
-        )}
+      {/* Export & Actions Footer */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-stone-200">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1 text-xs text-stone-600 hover:text-stone-900 font-medium transition"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Edit Packages</span>
+        </button>
 
-        {/* Detailed Item List */}
-        <div>
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-3">
-            Package Purchase Recommendations
-          </h3>
-
-          <div className="space-y-3">
-            {budgetMode && budgetResult ? (
-              budgetResult.items.map((item) => {
-                const req = recipe.requirements.find((r) => r.id === item.requirementId);
-                const isIncluded = item.status === 'included';
-                const isPantry = item.status === 'covered_by_pantry';
-                const isOmitted = item.status === 'omitted_optional';
-
-                return (
-                  <div
-                    key={item.requirementId}
-                    className={`p-4 rounded-xl border ${
-                      isOmitted
-                        ? 'bg-slate-950/40 border-slate-800/60 opacity-60'
-                        : isPantry
-                        ? 'bg-slate-950 border-slate-800'
-                        : 'bg-slate-950 border-slate-800'
-                    }`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-white">{req?.displayName}</span>
-                          <span
-                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase ${
-                              item.priority === 'essential'
-                                ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                                : 'bg-slate-800 text-slate-400 border border-slate-700'
-                            }`}
-                          >
-                            {item.priority}
-                          </span>
-                          {isOmitted && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-950 text-rose-400 border border-rose-800">
-                              Omitted to Fit Budget
-                            </span>
-                          )}
-                          {isPantry && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-950 text-blue-400 border border-blue-800">
-                              Covered by Pantry
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Required edible mass:{' '}
-                          {formatCanonicalQuantity(
-                            parseInt(item.requiredCanonicalQuantity, 10),
-                            req?.dimension || 'mass',
-                            req?.baseUnit
-                          )}
-                        </p>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="font-bold text-base text-white">
-                          {item.costCents !== null ? `$${(item.costCents / 100).toFixed(2)}` : '—'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Selections breakdown */}
-                    {isIncluded && item.selections.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div className="text-slate-300">
-                          <span className="text-slate-500 block text-[10px] uppercase font-semibold">Buy Packages</span>
-                          {item.selections.map((s) => {
-                            const pkg = packages.find((p) => p.id === s.packageId);
-                            return (
-                              <div key={s.packageId} className="font-semibold text-emerald-400">
-                                {s.count}× {pkg?.displayName} (${((pkg?.priceCents || 0) / 100).toFixed(2)})
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="text-slate-300">
-                          <span className="text-slate-500 block text-[10px] uppercase font-semibold">Coverage & Leftover</span>
-                          <div>
-                            Yields{' '}
-                            {formatCanonicalQuantity(
-                              parseInt(item.fulfilledCanonicalQuantity, 10),
-                              req?.dimension || 'mass',
-                              req?.baseUnit
-                            )}{' '}
-                            (
-                            {formatCanonicalQuantity(
-                              parseInt(item.leftoverCanonicalQuantity, 10),
-                              req?.dimension || 'mass',
-                              req?.baseUnit
-                            )}{' '}
-                            leftover)
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="mt-2 text-[11px] text-slate-400 italic">
-                      {item.explanation}
-                    </div>
-                  </div>
-                );
-              })
-            ) : unbudgetedResult ? (
-              unbudgetedResult.ingredientPlans.map((plan) => {
-                const req = recipe.requirements.find((r) => r.id === plan.ingredientId);
-
-                return (
-                  <div
-                    key={plan.ingredientId}
-                    className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div>
-                        <div className="font-bold text-sm text-white">{req?.displayName}</div>
-                        <div className="text-xs text-slate-400">
-                          Required edible target:{' '}
-                          {formatCanonicalQuantity(
-                            parseInt(plan.requiredCanonicalQuantity, 10),
-                            req?.dimension || 'mass',
-                            req?.baseUnit
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <span className="font-bold text-base text-emerald-400">
-                          {plan.ingredientCostCents !== undefined
-                            ? `$${(plan.ingredientCostCents / 100).toFixed(2)}`
-                            : '—'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {plan.selections.length > 0 && (
-                      <div className="pt-2 border-t border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-slate-500 block">
-                            Recommended Purchase
-                          </span>
-                          {plan.selections.map((s) => {
-                            const pkg = packages.find((p) => p.id === s.packageId);
-                            return (
-                              <div key={s.packageId} className="font-semibold text-slate-200">
-                                {s.count}× {pkg?.displayName} (${((pkg?.priceCents || 0) / 100).toFixed(2)})
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] uppercase font-semibold text-slate-500 block">
-                            Usable Yield & Leftover
-                          </span>
-                          <div className="text-slate-300">
-                            Provides{' '}
-                            {plan.providedCanonicalQuantity
-                              ? formatCanonicalQuantity(
-                                  parseInt(plan.providedCanonicalQuantity, 10),
-                                  req?.dimension || 'mass',
-                                  req?.baseUnit
-                                )
-                              : '0'}
-                            {plan.leftoverCanonicalQuantity && (
-                              <span className="text-slate-400">
-                                {' '}
-                                ({formatCanonicalQuantity(
-                                  parseInt(plan.leftoverCanonicalQuantity, 10),
-                                  req?.dimension || 'mass',
-                                  req?.baseUnit
-                                )}{' '}
-                                leftover)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="text-[11px] text-slate-400 italic">
-                      {plan.explanation}
-                    </div>
-                  </div>
-                );
-              })
-            ) : null}
-          </div>
-        </div>
-
-        {/* Export & Actions Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-slate-800">
+        <div className="flex items-center gap-2">
           <button
-            onClick={onBack}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition w-full sm:w-auto justify-center"
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-xs font-medium text-stone-700 transition"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Edit Packages or Budget</span>
+            <FileSpreadsheet className="w-3.5 h-3.5 text-[#3E4F32]" />
+            <span>CSV</span>
           </button>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={handleExportCsv}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-medium text-slate-200 border border-slate-700 transition"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-              <span>Export CSV</span>
-            </button>
-            <button
-              onClick={handleExportJson}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs sm:text-sm font-medium text-slate-200 border border-slate-700 transition"
-            >
-              <FileText className="w-4 h-4 text-emerald-400" />
-              <span>Export JSON</span>
-            </button>
-            <button
-              onClick={onStartOver}
-              className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-semibold text-xs sm:text-sm text-white transition text-center"
-            >
-              New Plan
-            </button>
-          </div>
+          <button
+            onClick={handleExportJson}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-xs font-medium text-stone-700 transition"
+          >
+            <FileText className="w-3.5 h-3.5 text-[#3E4F32]" />
+            <span>JSON</span>
+          </button>
+          <button
+            onClick={onStartOver}
+            className="px-3.5 py-1.5 rounded-lg bg-[#3E4F32] hover:bg-[#34422A] text-xs font-medium text-white transition shadow-xs"
+          >
+            New Plan
+          </button>
         </div>
       </div>
     </div>

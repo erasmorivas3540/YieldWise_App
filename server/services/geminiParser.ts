@@ -2,7 +2,9 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { IngredientRequirement, Recipe } from '../../src/types';
 
 export interface ParseRecipeRequest {
-  text: string;
+  text?: string;
+  imageBase64?: string;
+  mimeType?: string;
   preferredServings?: number;
 }
 
@@ -30,19 +32,44 @@ export async function parseRecipeWithGemini(
     },
   });
 
-  const preferredServings = req.preferredServings && req.preferredServings >= 1 && req.preferredServings <= 12
-    ? req.preferredServings
-    : 4;
+  const preferredServings =
+    req.preferredServings && req.preferredServings >= 1 && req.preferredServings <= 12
+      ? req.preferredServings
+      : 4;
 
-  const prompt = `Recipe / meal text to parse:
+  let contents: any;
+
+  if (req.imageBase64) {
+    // Multimodal screenshot or photo extraction
+    const cleanBase64 = req.imageBase64.replace(/^data:[a-zA-Z0-9/+-]+;base64,/, '');
+    const mimeType = req.mimeType || 'image/jpeg';
+
+    const imagePart = {
+      inlineData: {
+        mimeType,
+        data: cleanBase64,
+      },
+    };
+
+    const textPart = {
+      text: `Extract the recipe title, target servings (default to ${preferredServings} if unspecified), and every ingredient with numeric amount and unit from this recipe screenshot or label.
+If portions are vague, mark sourceKind as 'suggested_example'. If explicit numbers are legible, mark as 'explicit_recipe'.`,
+    };
+
+    contents = { parts: [imagePart, textPart] };
+  } else {
+    // Text extraction
+    const recipeText = req.text || '';
+    contents = `Recipe / meal text to parse:
 """
-${req.text.slice(0, 6000)}
+${recipeText.slice(0, 10000)}
 """
 Preferred servings: ${preferredServings}`;
+  }
 
   const response = await ai.models.generateContent({
     model: 'gemini-3.8-flash',
-    contents: prompt,
+    contents,
     config: {
       systemInstruction: `You are a structured recipe-extraction component in a consumer grocery planner.
 Return only schema-conformant JSON. Extract only quantities explicitly found in the input.
@@ -62,7 +89,7 @@ fields and brief short original notes. Do not provide medical or allergen guaran
           recipeTitle: { type: Type.STRING, description: 'Title of the recipe or meal' },
           sourceKind: {
             type: Type.STRING,
-            description: '"explicit_recipe" if user provided quantities, "suggested_example" if ingredients are estimated',
+            description: '"explicit_recipe" if quantities were found, "suggested_example" if ingredients are estimated',
           },
           targetServings: { type: Type.INTEGER, description: 'Integer servings between 1 and 12' },
           ingredients: {
@@ -121,7 +148,11 @@ fields and brief short original notes. Do not provide medical or allergen guaran
         baseServings: servings,
         provenance: {
           type: isSuggested ? 'AI_DRAFT' : 'USER_CONFIRMED',
-          sourceLabel: isSuggested ? 'AI Suggested Draft (Review Required)' : 'Extracted from user recipe text',
+          sourceLabel: req.imageBase64
+            ? 'Extracted from recipe screenshot'
+            : isSuggested
+            ? 'AI Suggested Draft (Review Required)'
+            : 'Extracted from user recipe text',
           observedAt: new Date().toISOString(),
           note: item.ambiguityNote || (isSuggested ? 'Plausible sample portion; review before shopping.' : undefined),
           confirmedByUser: false,
@@ -138,12 +169,12 @@ fields and brief short original notes. Do not provide medical or allergen guaran
 
   const draftRecipe: Recipe = {
     id: `recipe-${Date.now()}`,
-    title: parsed.recipeTitle || 'Draft Dinner Plan',
+    title: parsed.recipeTitle || (req.imageBase64 ? 'Extracted Recipe Screenshot' : 'Draft Dinner Plan'),
     targetServings: servings,
     requirements,
     source: {
       type: 'AI_DRAFT',
-      sourceLabel: 'Gemini 3.8 Flash Draft',
+      sourceLabel: req.imageBase64 ? 'Gemini 3.8 Flash Screenshot Extraction' : 'Gemini 3.8 Flash Draft',
       observedAt: new Date().toISOString(),
       note: 'User review required before optimization.',
       confirmedByUser: false,
@@ -156,4 +187,100 @@ fields and brief short original notes. Do not provide medical or allergen guaran
     warnings,
     isAiSuggested: isSuggested,
   };
+}
+
+/**
+ * Safely fetches a public recipe URL and extracts structured ingredients via Gemini
+ */
+export async function parseRecipeFromUrl(urlStr: string, preferredServings: number = 4): Promise<ParseRecipeResponse> {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(urlStr);
+  } catch {
+    throw new Error('Invalid URL format. Please provide a full web address (e.g., https://example.com/recipe).');
+  }
+
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+    throw new Error('Only HTTP and HTTPS recipe links are supported.');
+  }
+
+  // Prevent SSRF / internal IP scanning
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname.startsWith('192.168.') ||
+    hostname.startsWith('10.') ||
+    hostname.startsWith('169.254.')
+  ) {
+    throw new Error('Private or local addresses cannot be fetched.');
+  }
+
+  let htmlText = '';
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 9000);
+
+    const res = await fetch(parsedUrl.toString(), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 YieldWise/1.0',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      throw new Error(`The website responded with status ${res.status}.`);
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('text') && !contentType.includes('html') && !contentType.includes('json')) {
+      throw new Error('The URL does not point to a web page or recipe document.');
+    }
+
+    htmlText = await res.text();
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out while connecting to the recipe website.');
+    }
+    throw new Error(`Could not access this recipe link (${err.message || 'connection failed'}). You can screenshot the page or paste the recipe text directly.`);
+  }
+
+  // Extract clean text from HTML
+  // First check for JSON-LD Recipe structured data
+  const jsonLdMatch = htmlText.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  let jsonLdContent = '';
+  if (jsonLdMatch) {
+    for (const tag of jsonLdMatch) {
+      const content = tag.replace(/<\/?script[^>]*>/gi, '').trim();
+      if (content.includes('"Recipe"') || content.includes('"recipeIngredient"')) {
+        jsonLdContent = content;
+        break;
+      }
+    }
+  }
+
+  // Strip script, style, and svg tags, then remove all tags
+  const sanitizedHtml = htmlText
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+    .replace(/<svg\b[^<]*(?:(?!<\/svg>)<[^<]*)*<\/svg>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const textToParse = jsonLdContent
+    ? `JSON-LD Recipe Metadata:\n${jsonLdContent.slice(0, 5000)}\n\nPage Text:\n${sanitizedHtml.slice(0, 5000)}`
+    : sanitizedHtml.slice(0, 8000);
+
+  if (textToParse.length < 30) {
+    throw new Error('The website returned no readable recipe text. Please paste the recipe or upload a screenshot.');
+  }
+
+  return parseRecipeWithGemini({
+    text: textToParse,
+    preferredServings,
+  });
 }
